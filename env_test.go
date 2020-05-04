@@ -981,7 +981,7 @@ func TestParseInvalidURL(t *testing.T) {
 	}
 	var cfg config
 	os.Setenv("EXAMPLE_URL_2", "nope://s s/")
-	assert.EqualError(t, Parse(&cfg), "env: parse error on field \"ExampleURL\" of type \"url.URL\": unable to parse URL: parse nope://s s/: invalid character \" \" in host name")
+	assert.EqualError(t, Parse(&cfg), "env: parse error on field \"ExampleURL\" of type \"url.URL\": unable to parse URL: parse \"nope://s s/\": invalid character \" \" in host name")
 }
 
 func ExampleParse() {
@@ -1177,4 +1177,35 @@ func TestFileWithDefault(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "secret", cfg.SecretKey)
 
+}
+
+type ParentPrefixStruct struct {
+	InnerStruct *InnerStruct `envPrefix:"B_"`
+	Val         string       `env:"C"`
+}
+
+func TestParsesEnvPrefixInner(t *testing.T) {
+	os.Setenv("A_B_innervar", "someinnervalue")
+	os.Setenv("A_B_innernum", "8")
+	os.Setenv("A_C", "somevalue")
+	defer os.Clearenv()
+	cfg := ParentPrefixStruct{
+		InnerStruct: &InnerStruct{},
+	}
+	assert.NoError(t, ParsePrefix("A_", &cfg))
+	assert.Equal(t, "someinnervalue", cfg.InnerStruct.Inner)
+	assert.Equal(t, uint(8), cfg.InnerStruct.Number)
+	assert.Equal(t, "somevalue", cfg.Val)
+}
+
+func TestParsesEnvPrefixInnerFails(t *testing.T) {
+	defer os.Clearenv()
+	type config struct {
+		Foo struct {
+			Number int `env:"NUMBER"`
+		} `envPrefix:"B_"`
+	}
+	os.Setenv("A_B_NUMBER", "not-a-number")
+	var cfg = config{}
+	assert.EqualError(t, ParsePrefix("A_", &cfg), "env: parse error on field \"Number\" of type \"int\": strconv.ParseInt: parsing \"not-a-number\": invalid syntax")
 }
