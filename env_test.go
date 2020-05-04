@@ -1003,6 +1003,27 @@ func ExampleParse() {
 	// Output: {Home:/tmp/fakehome Port:3000 IsProduction:false Inner:{Foo:foobar}}
 }
 
+func ExampleParsePrefix() {
+	type inner struct {
+		Foo string `env:"FOO" envDefault:"foobar"`
+		Bar int    `env:"BAR"`
+	}
+	type config struct {
+		Home         string `env:"HOME,required"`
+		Port         int    `env:"PORT" envDefault:"3000"`
+		IsProduction bool   `env:"PRODUCTION"`
+		Inner        inner  `envPrefix:"FIX_"`
+	}
+	os.Setenv("PRE_HOME", "/tmp/fakehome")
+	os.Setenv("PRE_FIX_BAR", "8")
+	var cfg config
+	if err := ParsePrefix("PRE_", &cfg); err != nil {
+		fmt.Println("failed:", err)
+	}
+	fmt.Printf("%+v", cfg)
+	// Output: {Home:/tmp/fakehome Port:3000 IsProduction:false Inner:{Foo:foobar Bar:8}}
+}
+
 func TestIgnoresUnexported(t *testing.T) {
 	type unexportedConfig struct {
 		home  string `env:"HOME"`
@@ -1192,6 +1213,23 @@ func TestParsesEnvPrefixInner(t *testing.T) {
 	cfg := ParentPrefixStruct{
 		InnerStruct: &InnerStruct{},
 	}
+	assert.NoError(t, ParsePrefix("A_", &cfg))
+	assert.Equal(t, "someinnervalue", cfg.InnerStruct.Inner)
+	assert.Equal(t, uint(8), cfg.InnerStruct.Number)
+	assert.Equal(t, "somevalue", cfg.Val)
+}
+
+type ParentPrefixStruct2 struct {
+	InnerStruct InnerStruct `envPrefix:"B_"`
+	Val         string      `env:"C"`
+}
+
+func TestParsesEnvPrefixInner2(t *testing.T) {
+	os.Setenv("A_B_innervar", "someinnervalue")
+	os.Setenv("A_B_innernum", "8")
+	os.Setenv("A_C", "somevalue")
+	defer os.Clearenv()
+	cfg := ParentPrefixStruct2{}
 	assert.NoError(t, ParsePrefix("A_", &cfg))
 	assert.Equal(t, "someinnervalue", cfg.InnerStruct.Inner)
 	assert.Equal(t, uint(8), cfg.InnerStruct.Number)

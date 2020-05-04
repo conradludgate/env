@@ -136,8 +136,6 @@ func doParse(prefix string, ref reflect.Value, funcMap map[reflect.Type]ParserFu
 
 	for i := 0; i < refType.NumField(); i++ {
 		refField := ref.Field(i)
-		kind := refField.Kind()
-		print(kind)
 		if !refField.CanSet() {
 			continue
 		}
@@ -149,9 +147,6 @@ func doParse(prefix string, ref reflect.Value, funcMap map[reflect.Type]ParserFu
 			}
 			continue
 		}
-		canaddr := refField.CanAddr()
-		name := refField.Type().Name()
-		print(canaddr, name)
 		if reflect.Struct == refField.Kind() && refField.CanAddr() && refField.Type().Name() == "" {
 			envPrefix := refType.Field(i).Tag.Get("envPrefix")
 			err := ParsePrefix(prefix+envPrefix, refField.Addr().Interface())
@@ -167,7 +162,8 @@ func doParse(prefix string, ref reflect.Value, funcMap map[reflect.Type]ParserFu
 		}
 		if value == "" {
 			if reflect.Struct == refField.Kind() {
-				if err := doParse(prefix, refField, funcMap); err != nil {
+				envPrefix := refType.Field(i).Tag.Get("envPrefix")
+				if err := doParse(prefix+envPrefix, refField, funcMap); err != nil {
 					return err
 				}
 			}
