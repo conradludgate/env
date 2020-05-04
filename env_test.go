@@ -1101,6 +1101,32 @@ func ExampleParseWithFuncs() {
 	// my thing
 }
 
+func ExampleParsePrefixWithFuncs() {
+	type thing struct {
+		desc string
+	}
+
+	type conf struct {
+		Thing thing `env:"THING"`
+	}
+
+	os.Setenv("PREFIX_THING", "my thing")
+
+	var c = conf{}
+
+	err := ParsePrefixWithFuncs("PREFIX_", &c, map[reflect.Type]ParserFunc{
+		reflect.TypeOf(thing{}): func(v string) (interface{}, error) {
+			return thing{desc: v}, nil
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(c.Thing.desc)
+	// Output:
+	// my thing
+}
+
 func TestFile(t *testing.T) {
 	type config struct {
 		SecretKey string `env:"SECRET_KEY,file"`
